@@ -26,8 +26,11 @@ android {
         val githubClientId = (project.findProperty("githubClientId") as String?) ?: ""
         buildConfigField("String", "GOOGLE_SERVER_CLIENT_ID", "\"$googleClientId\"")
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"$githubClientId\"")
-        buildConfigField("String", "GITHUB_REDIRECT_URI", "\"claimsapp://oauth\"")
-        manifestPlaceholders["oauthScheme"] = "claimsapp"
+        // GitHub redirect + custom scheme. Configurable so the app can reuse an existing
+        // GitHub OAuth app's callback (e.g. -PgithubRedirectUri=bidhound://oauth -PoauthScheme=bidhound).
+        val githubRedirect = (project.findProperty("githubRedirectUri") as String?) ?: "claimsapp://oauth"
+        buildConfigField("String", "GITHUB_REDIRECT_URI", "\"$githubRedirect\"")
+        manifestPlaceholders["oauthScheme"] = (project.findProperty("oauthScheme") as String?) ?: "claimsapp"
         manifestPlaceholders["oauthHost"] = "oauth"
 
         // Ship native libs only for real arm64 devices + x86_64 emulators
