@@ -17,3 +17,28 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+
+  # App #2 system of record. Synthetic claims live here; scanned document images are
+  # stored as bytea (S3 was dropped for images because LocalStack S3 is not persistent).
+  # The named volume gives Postgres real persistence across restarts.
+  postgres:
+    image: postgres:16
+    container_name: ai-claims-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${CLAIMS_DB_NAME:-claims}
+      - POSTGRES_USER=${CLAIMS_DB_USER:-claims}
+      - POSTGRES_PASSWORD=${CLAIMS_DB_PASSWORD:-claims}
+    ports:
+      # Host 5433 to avoid clashing with a pre-existing shared-postgres on 5432.
+      - "5433:5432"
+    volumes:
+      - claims-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CLAIMS_DB_USER:-claims} -d ${CLAIMS_DB_NAME:-claims}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  claims-pgdata:

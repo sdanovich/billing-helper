@@ -1,0 +1,22 @@
+# TLS termination for the App #2 data-side backend.
+#
+# Public endpoint: https://danovich.ddns.net:28587  ->  claims-backend on :8090
+#
+# Caddy obtains and renews a real Let's Encrypt cert for danovich.ddns.net automatically.
+# IMPORTANT: the site is *served* on 28587, but the ACME challenge is NOT. Caddy needs one of:
+#   - port 80 reachable from the internet (HTTP-01 challenge), or
+#   - port 443 reachable (TLS-ALPN-01 challenge), or
+#   - a DNS provider plugin (DNS-01) if you cannot forward 80/443.
+# So forward 80 (and/or 443) AND 28587 from the router to this machine. DNS already
+# resolves danovich.ddns.net -> this host's public IP.
+#
+# Run:  caddy run --config deploy/Caddyfile
+# (or install as a service; see deploy/README.md)
+
+danovich.ddns.net:28587 {
+	encode gzip
+	reverse_proxy localhost:8090
+
+	# The agent's MCP tunnel is a SEPARATE door and is intentionally not proxied here.
+	# This vhost serves only the authenticated /api/** claims surface.
+}
