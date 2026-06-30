@@ -1,53 +1,81 @@
-# Deploy — TLS for the claims backend
+# Deploy — claims backend on the LAN (same strategy as NearMe/BidHound)
 
-The Android app talks to **`https://danovich.ddns.net:28587`**. TLS is terminated by a reverse
-proxy (Caddy) in front of the Spring Boot backend (`:8090`). This is a deliberate public inbound
-endpoint over DDNS — acceptable only because the data is synthetic and every `/api/**` route is
-auth-enforced. It is a **separate door** from the agent's MCP tunnel and changes none of the
-tunnel rules.
+The Android app talks to **`https://danovich.ddns.net:28587`**. On this host that name is served
+the same way as the sibling apps (NearMe :28585, BidHound :28586):
 
-## Caddy (recommended)
+1. **LAN DNS** — `bidhound-lan-dns.service` (dnsmasq) resolves `danovich.ddns.net` →
+   `192.168.0.115` (this host) for LAN clients.
+2. **Direct HTTPS with a self-signed cert** — the Spring Boot backend terminates TLS itself on
+   28587 from a mounted PKCS12 keystore. No reverse proxy, no public Let's Encrypt, no
+   port-forward.
+3. **Boot enablement** — `nearme-startup.sh` (run by `nearme-startup.service`) brings every app
+   up with `docker compose up -d` on boot.
 
-`deploy/Caddyfile` holds the config:
+## TLS keystore (`deploy/tls/`)
 
-```
-danovich.ddns.net:28587 {
-    encode gzip
-    reverse_proxy localhost:8090
-}
-```
+- `claims-tls.p12` — PKCS12 keystore (alias `claims-tls`), mounted into the backend container.
+- `claims_tls.pem` — the public cert; also bundled in the Android app so it trusts the backend.
 
-Run it:
-
-```bash
-caddy run --config deploy/Caddyfile
-# or install as a service: caddy start --config deploy/Caddyfile
-```
-
-Caddy obtains and renews a real Let's Encrypt cert automatically.
-
-### Port forwarding — the one gotcha
-
-The site is **served** on `28587`, but the ACME challenge is **not**. The cert is issued over the
-standard challenge ports. So on your router, forward to this machine:
-
-- **28587** → app traffic (required), and
-- **80** (HTTP-01) **and/or 443** (TLS-ALPN-01) → so Caddy can complete the ACME challenge.
-
-`danovich.ddns.net` already resolves to this host's public IP. If you cannot expose 80/443, use a
-**DNS-01** challenge instead (Caddy DNS provider plugin for your registrar) — then only 28587 needs
-forwarding.
-
-### nginx alternative
-
-If you prefer nginx, terminate TLS with a Let's Encrypt cert (via certbot) and `proxy_pass` to
-`http://localhost:8090`. Issue the cert with `certbot certonly` (HTTP-01 needs port 80; DNS-01
-needs none), then point a `server { listen 28587 ssl; ... }` block at the backend.
-
-## Verifying end-to-end over TLS
+SANs: `danovich.ddns.net`, `localhost`, `192.168.0.115`, `127.0.0.1`. Regenerate (10y):
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' https://danovich.ddns.net:28587/api/claims   # 401 (no token)
+cd deploy/tls
+openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+  -keyout claims-key.pem -out claims_tls.pem \
+  -subj "/CN=danovich.ddns.net/O=Claims POC" \
+  -addext "subjectAltName=DNS:danovich.ddns.net,DNS:localhost,IP:192.168.0.115,IP:127.0.0.1"
+openssl pkcs12 -export -inkey claims-key.pem -in claims_tls.pem \
+  -name claims-tls -out claims-tls.p12 -passout pass:"$SSL_KEYSTORE_PASSWORD"
+rm claims-key.pem
+cp claims_tls.pem ../../android/app/src/main/res/raw/claims_tls.pem   # keep the app's copy in sync
 ```
 
-A `401` (not a connection/cert error) means TLS + proxy + auth filter are all working.
+The keystore password lives in `.env` as `SSL_KEYSTORE_PASSWORD` (gitignored).
+
+## Run it
+
+```bash
+# 1. secrets (gitignored): CLAIMS_JWT_SECRET (>=32 bytes), SSL_KEYSTORE_PASSWORD (matches the p12)
+cp .env.example .env && $EDITOR .env
+
+# 2. build the fat jar (needs JDK 21 + mavenLocal), then the image
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./mvnw -pl claims-backend -am -DskipTests package
+docker compose build backend
+
+# 3. start backend (+ Postgres dependency)
+docker compose up -d backend
+
+# 4. verify HTTPS (self-signed → -k)
+curl -sk -o /dev/null -w '%{http_code}\n' https://localhost:28587/api/claims   # 401
+```
+
+## Boot enablement — add 28587 to nearme-startup
+
+`deploy/nearme-startup.sh` is the updated startup script (the existing NearMe/BidHound one plus a
+`[5b] Start Claims` step and 28587 in the verify/test). Install it (needs root):
+
+```bash
+sudo cp /home/vdanovich/projects/ai/deploy/nearme-startup.sh /usr/local/bin/nearme-startup.sh
+sudo chmod +x /usr/local/bin/nearme-startup.sh
+# the unit (nearme-startup.service) already runs this script on boot — no daemon-reload needed
+sudo systemctl restart nearme-startup.service     # apply now
+```
+
+## Firewall (ufw)
+
+ufw is active on this host. Allow 28587 the same way 28585/28586 are allowed:
+
+```bash
+sudo ufw allow 28587/tcp
+sudo ufw status verbose      # confirm
+```
+
+(If those ports are scoped to the LAN subnet rather than opened globally, match that scoping for
+28587 instead of a blanket allow.)
+
+## Android trust
+
+The app bundles `claims_tls.pem` and trusts it via
+`android/app/src/main/res/xml/network_security_config.xml`, so it accepts the self-signed backend
+at `danovich.ddns.net:28587`. Keep the bundled `res/raw/claims_tls.pem` in sync with the keystore
+if you regenerate the cert.

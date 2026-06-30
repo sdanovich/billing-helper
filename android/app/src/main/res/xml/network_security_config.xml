@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The backend serves HTTPS with a self-signed cert (deploy/tls/claims_tls.pem), reached as
+     danovich.ddns.net:28587 (LAN DNS maps that name to the host). Trust that bundled cert in
+     addition to the system CAs. The cert only validates the backend's SANs, so other HTTPS
+     (Google sign-in, GitHub, etc.) still relies on the system CAs as usual. -->
+<network-security-config>
+    <base-config>
+        <trust-anchors>
+            <certificates src="@raw/claims_tls" />
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
