@@ -1,0 +1,19 @@
+services:
+  localstack:
+    image: localstack/localstack:3.8
+    container_name: ai-agent-poc-localstack
+    restart: unless-stopped
+    ports:
+      - "4566:4566"            # LocalStack edge gateway (all AWS services)
+    environment:
+      - SERVICES=s3
+      - DEBUG=0
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      # Init hook: runs once LocalStack is ready, seeds the demo bucket + objects.
+      - ./scripts/localstack-init.sh:/etc/localstack/init/ready.d/init.sh
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12

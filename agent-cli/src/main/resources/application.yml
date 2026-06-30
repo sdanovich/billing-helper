@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: agent-cli
+  # CLI app: don't start a web server even though WebFlux is on the classpath (used only as MCP HTTP client).
+  main:
+    web-application-type: none
+    banner-mode: "off"
+  ai:
+    anthropic:
+      # Claude API key. Named GENESIS_API_KEY per project convention.
+      api-key: ${GENESIS_API_KEY:}
+      # Override if Genesis is an Anthropic-compatible gateway rather than the public API.
+      base-url: ${GENESIS_BASE_URL:https://api.anthropic.com}
+      chat:
+        options:
+          model: ${CLAUDE_MODEL:claude-sonnet-4-6}
+          max-tokens: 2048
+          temperature: 0.2
+    mcp:
+      client:
+        enabled: true
+        name: agent-cli
+        version: 0.0.1
+        type: SYNC
+        request-timeout: 60s
+        toolcallback:
+          enabled: true
+        sse:
+          connections:
+            aws-server:
+              url: ${MCP_SERVER_URL:http://localhost:8080}
+
+logging:
+  level:
+    root: WARN
+    com.example.agent: INFO

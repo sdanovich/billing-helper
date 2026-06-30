@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mcp-aws-server
+  ai:
+    mcp:
+      server:
+        name: aws-mcp-server
+        version: 0.0.1
+        type: SYNC
+        # SSE transport (WebMVC). Clients connect to http://host:8080 and subscribe at /sse.
+        sse-endpoint: /sse
+        sse-message-endpoint: /mcp/message
+
+# S3 / LocalStack connection (overridable via AWS_ENDPOINT, AWS_REGION env vars).
+aws:
+  endpoint: ${AWS_ENDPOINT:http://localhost:4566}
+  region: ${AWS_REGION:us-east-1}
+  access-key: ${AWS_ACCESS_KEY_ID:test}
+  secret-key: ${AWS_SECRET_ACCESS_KEY:test}
+
+logging:
+  level:
+    com.example.mcpaws: INFO
+    io.modelcontextprotocol: INFO
