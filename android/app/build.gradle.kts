@@ -46,6 +46,9 @@ android {
         release {
             isMinifyEnabled = true       // R8 code shrinking/obfuscation
             isShrinkResources = true     // strip unused resources
+            // Debug-signed so the release APK is installable for testing. For real
+            // distribution, replace with a dedicated release keystore (kept out of git).
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

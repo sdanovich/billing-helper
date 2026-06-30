@@ -1,0 +1,3 @@
+# Only the prebuilt fat jar is needed in the image build context.
+*
+!target/claims-backend.jar

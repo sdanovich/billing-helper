@@ -1,8 +1,14 @@
 server:
-  # Plain HTTP behind the TLS-terminating reverse proxy (Caddy). The public endpoint is
-  # https://danovich.ddns.net:28587 -> proxy -> this port. 8090 avoids clashing with the
-  # MCP server (8080).
+  # Local dev defaults to plain HTTP on 8090. In deployment the backend serves HTTPS
+  # directly on 28587 with a self-signed keystore (same strategy as BidHound/NearMe on the
+  # LAN; danovich.ddns.net resolves to this host via the LAN DNS). Driven by SSL_* env.
   port: ${SERVER_PORT:8090}
+  ssl:
+    enabled: ${SSL_ENABLED:false}
+    key-store: ${SSL_KEYSTORE:}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:}
+    key-store-type: PKCS12
+    key-alias: ${SSL_KEY_ALIAS:claims-tls}
 
 spring:
   application:

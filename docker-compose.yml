@@ -40,5 +40,37 @@ services:
       timeout: 5s
       retries: 12
 
+  # App #2 backend (Spring Boot), containerized. Serves HTTPS directly on 28587 with a
+  # self-signed keystore — the same strategy as BidHound/NearMe on this LAN, where the LAN
+  # DNS resolves danovich.ddns.net to this host. No reverse proxy / public ACME needed.
+  # Build the fat jar first (see claims-backend/Dockerfile), then `docker compose build backend`.
+  backend:
+    build:
+      context: ./claims-backend
+    image: ai-claims-backend
+    container_name: ai-claims-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - SERVER_PORT=28587
+      - CLAIMS_DB_URL=jdbc:postgresql://postgres:5432/${CLAIMS_DB_NAME:-claims}
+      - CLAIMS_DB_USER=${CLAIMS_DB_USER:-claims}
+      - CLAIMS_DB_PASSWORD=${CLAIMS_DB_PASSWORD:-claims}
+      - CLAIMS_JWT_SECRET=${CLAIMS_JWT_SECRET}          # >= 32 bytes or startup fails
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID:-}
+      - GITHUB_OAUTH_CLIENT_ID=${GITHUB_OAUTH_CLIENT_ID:-}
+      - GITHUB_OAUTH_CLIENT_SECRET=${GITHUB_OAUTH_CLIENT_SECRET:-}
+      # Direct HTTPS with the mounted self-signed keystore.
+      - SSL_ENABLED=true
+      - SSL_KEYSTORE=/etc/claims/tls.p12
+      - SSL_KEYSTORE_PASSWORD=${SSL_KEYSTORE_PASSWORD}
+      - SSL_KEY_ALIAS=claims-tls
+    volumes:
+      - ./deploy/tls/claims-tls.p12:/etc/claims/tls.p12:ro
+    ports:
+      - "28587:28587"   # public HTTPS endpoint (LAN DNS maps danovich.ddns.net here)
+
 volumes:
   claims-pgdata:
