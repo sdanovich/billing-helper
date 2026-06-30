@@ -21,6 +21,7 @@
     <modules>
         <module>mcp-aws-server</module>
         <module>agent-cli</module>
+        <module>claims-backend</module>
     </modules>
 
     <properties>

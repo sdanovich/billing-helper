@@ -1,0 +1,65 @@
+server:
+  # Plain HTTP behind the TLS-terminating reverse proxy (Caddy). The public endpoint is
+  # https://danovich.ddns.net:28587 -> proxy -> this port. 8090 avoids clashing with the
+  # MCP server (8080).
+  port: ${SERVER_PORT:8090}
+
+spring:
+  application:
+    name: claims-backend
+
+  datasource:
+    url: ${CLAIMS_DB_URL:jdbc:postgresql://localhost:5433/claims}
+    username: ${CLAIMS_DB_USER:claims}
+    password: ${CLAIMS_DB_PASSWORD:claims}
+
+  jpa:
+    # Flyway owns the schema (incl. the platform-stack login entities' tables). ddl-auto=none
+    # avoids brittle Hibernate validate mismatches (Instant->timestamptz, numeric precision)
+    # across both our entities and the vendored login entities.
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 20MB
+
+# platform-stack auth (backend-auth + backend-login). Secrets come from env only.
+# jwt-secret MUST be >= 32 bytes or startup fails fast.
+platform:
+  auth:
+    client-secret: ${CLAIMS_AUTH_CLIENT_SECRET:}
+    jwt-secret: ${CLAIMS_JWT_SECRET:}
+    ttl-seconds: 3600
+    protected-prefix: /api/
+    subject: claims-app
+    # JwtAuthFilter matches these by EXACT path. Every login endpoint must be listed,
+    # or clerks can never authenticate. The client-credentials /api/auth/token endpoint
+    # is deliberately omitted (this app authenticates users, not the app).
+    public-paths:
+      - /api/auth/register
+      - /api/auth/login
+      - /api/auth/refresh
+      - /api/auth/google
+      - /api/auth/github
+    refresh:
+      ttl-seconds: 2592000
+
+# Social sign-in providers. Blank id disables that provider (returns 503); email/password
+# and PIN still work. Set these from env once OAuth apps are registered.
+oauth:
+  google:
+    client-id: ${GOOGLE_OAUTH_CLIENT_ID:}
+  github:
+    client-id: ${GITHUB_OAUTH_CLIENT_ID:}
+    client-secret: ${GITHUB_OAUTH_CLIENT_SECRET:}
+
+logging:
+  level:
+    com.example.claims: INFO
