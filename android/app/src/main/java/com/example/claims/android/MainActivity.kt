@@ -1,6 +1,7 @@
 package com.example.claims.android
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -27,10 +28,13 @@ class MainActivity : ComponentActivity() {
         handleOAuthRedirect(intent)
     }
 
-    /** Forward the GitHub OAuth redirect (claimsapp://oauth?code=...) to the login screen. */
+    /** Forward the GitHub OAuth redirect (<scheme>://oauth?code=...) to the login screen.
+     *  The scheme/host come from the configured redirect URI so this works regardless of
+     *  which GitHub OAuth app (and callback) the build is wired to. */
     private fun handleOAuthRedirect(intent: Intent?) {
         val data = intent?.data ?: return
-        if (data.scheme == "claimsapp" && data.host == "oauth") {
+        val redirect = Uri.parse(BuildConfig.GITHUB_REDIRECT_URI)
+        if (data.scheme == redirect.scheme && data.host == redirect.host) {
             data.getQueryParameter("code")?.let { OauthRelay.deliver(it) }
         }
     }

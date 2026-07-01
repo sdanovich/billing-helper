@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.claims.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         // API base URL. Defaults to the public TLS endpoint; override with
         // -PbaseUrl=... (e.g. http://10.0.2.2:8090 for an emulator against the local backend).
@@ -26,8 +26,11 @@ android {
         val githubClientId = (project.findProperty("githubClientId") as String?) ?: ""
         buildConfigField("String", "GOOGLE_SERVER_CLIENT_ID", "\"$googleClientId\"")
         buildConfigField("String", "GITHUB_CLIENT_ID", "\"$githubClientId\"")
-        buildConfigField("String", "GITHUB_REDIRECT_URI", "\"claimsapp://oauth\"")
-        manifestPlaceholders["oauthScheme"] = "claimsapp"
+        // GitHub redirect + custom scheme. Configurable so the app can reuse an existing
+        // GitHub OAuth app's callback (e.g. -PgithubRedirectUri=bidhound://oauth -PoauthScheme=bidhound).
+        val githubRedirect = (project.findProperty("githubRedirectUri") as String?) ?: "claimsapp://oauth"
+        buildConfigField("String", "GITHUB_REDIRECT_URI", "\"$githubRedirect\"")
+        manifestPlaceholders["oauthScheme"] = (project.findProperty("oauthScheme") as String?) ?: "claimsapp"
         manifestPlaceholders["oauthHost"] = "oauth"
 
         // Ship native libs only for real arm64 devices + x86_64 emulators

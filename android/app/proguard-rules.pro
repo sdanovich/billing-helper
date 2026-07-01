@@ -37,3 +37,7 @@
 # Quiet known-safe missing references from transitive libs.
 -dontwarn org.jetbrains.annotations.**
 -dontwarn javax.annotation.**
+
+# Preserve the build-time OAuth client ids (read via BuildConfig in LoginRoute); R8 was
+# otherwise propagating these string constants away, disabling Google/GitHub sign-in.
+-keep class com.example.claims.android.BuildConfig { *; }
