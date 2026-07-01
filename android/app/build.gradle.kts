@@ -14,6 +14,7 @@ android {
         targetSdk = 34
         versionCode = 2
         versionName = "1.1"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         // API base URL. Defaults to the public TLS endpoint; override with
         // -PbaseUrl=... (e.g. http://10.0.2.2:8090 for an emulator against the local backend).
@@ -105,4 +106,13 @@ dependencies {
     // platform-stack auth (source subprojects from the submodule)
     implementation(project(":android-auth"))
     implementation(project(":platform-login-ui"))
+
+    // Pure-JVM unit tests (e.g. the deterministic ClaimParser).
+    testImplementation("junit:junit:4.13.2")
+
+    // On-device (instrumented) tests: real ML Kit OCR + PdfRenderer pipeline.
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test:runner:1.5.2")
+    androidTestImplementation("androidx.test:core-ktx:1.5.0")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
 }
