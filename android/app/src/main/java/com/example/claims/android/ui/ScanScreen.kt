@@ -3,6 +3,7 @@ package com.example.claims.android.ui
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts.OpenDocument
 import androidx.activity.result.contract.ActivityResultContracts.StartIntentSenderForResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DocumentScanner
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -33,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.claims.android.data.AppGraph
 import com.example.claims.android.data.CLAIM_STATUSES
+import com.example.claims.android.scan.IMPORT_MIME_TYPES
 import com.example.claims.android.scan.ScanForm
 import com.example.claims.android.scan.buildDocumentScanner
 import com.example.claims.android.scan.findActivity
@@ -62,6 +65,12 @@ fun ScanScreen(graph: AppGraph, onDone: () -> Unit, onCancel: () -> Unit) {
             }
     }
 
+    // Import an existing file (any image format or a PDF) straight into OCR — the scanner's own
+    // gallery import is images-only, so this is the path for PDFs.
+    val importLauncher = rememberLauncherForActivityResult(OpenDocument()) { uri ->
+        uri?.let { vm.onScanned(context, it) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -79,6 +88,14 @@ fun ScanScreen(graph: AppGraph, onDone: () -> Unit, onCancel: () -> Unit) {
             OutlinedButton(onClick = { startScan() }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.DocumentScanner, contentDescription = null)
                 Text("  Scan document", modifier = Modifier.padding(start = 4.dp))
+            }
+
+            OutlinedButton(
+                onClick = { importLauncher.launch(IMPORT_MIME_TYPES) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Filled.UploadFile, contentDescription = null)
+                Text("  Import image or PDF", modifier = Modifier.padding(start = 4.dp))
             }
 
             state.imageUri?.let { uri ->

@@ -10,8 +10,10 @@ remotely, over the tunnel.
 - **Images never traverse the MCP tunnel.** They live in a separate `claim_images` table and
   are served only by the authenticated `GET /api/claims/{id}/image`. The structured-claims
   read path never selects image bytes.
-- **Synthetic data only.** Ingest rejects non-synthetic ids (claim id must start with `TEST-`,
-  member id with `MBR-TEST-`).
+- **Ingest validation.** Requires the key fields (`claimId`, `patientName`, `memberId`, `payer`,
+  `status`; `denialReason` when denied); 400 otherwise. The prior synthetic-only guardrail
+  (ids had to start with `TEST-` / `MBR-TEST-`) has been lifted so real scanned statements can be
+  saved — treat ingested data as potentially real PHI.
 - **Images in Postgres, not S3.** LocalStack S3 isn't persistent, so scanned images are stored
   as `bytea`. The `claims.image_id` column references the `claim_images` row.
 
