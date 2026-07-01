@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.claims.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         // API base URL. Defaults to the public TLS endpoint; override with
         // -PbaseUrl=... (e.g. http://10.0.2.2:8090 for an emulator against the local backend).
