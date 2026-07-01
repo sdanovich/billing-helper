@@ -48,12 +48,8 @@ class ScanViewModel(private val repo: ClaimsRepository) : ViewModel() {
 
     fun save(onSaved: () -> Unit) {
         val f = _state.value.form
-        if (!f.claimId.trim().startsWith("TEST-")) {
-            _state.update { it.copy(error = "Claim id must be synthetic (start with TEST-).") }
-            return
-        }
-        if (f.patientName.isBlank() || f.memberId.isBlank() || f.payer.isBlank()) {
-            _state.update { it.copy(error = "Patient, member id and payer are required.") }
+        if (f.claimId.isBlank() || f.patientName.isBlank() || f.memberId.isBlank() || f.payer.isBlank()) {
+            _state.update { it.copy(error = "Claim id, patient, member id and payer are required.") }
             return
         }
         _state.update { it.copy(busy = true, error = null) }

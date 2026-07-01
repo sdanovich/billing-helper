@@ -126,15 +126,11 @@ public class JpaClaimStore implements ClaimStore {
         return claims.existsById(claimId);
     }
 
-    /** Synthetic-only guardrail (no real PHI) plus required-field checks. 400 on failure. */
+    /** Required-field checks. 400 on failure. */
     private static void validate(IngestClaimRequest r) {
         require(notBlank(r.claimId()), "claimId is required");
-        require(r.claimId().trim().startsWith("TEST-"),
-                "claimId must be synthetic (start with TEST-)");
         require(notBlank(r.patientName()), "patientName is required");
         require(notBlank(r.memberId()), "memberId is required");
-        require(r.memberId().trim().startsWith("MBR-TEST-"),
-                "memberId must be synthetic (start with MBR-TEST-)");
         require(notBlank(r.payer()), "payer is required");
         require(r.status() != null, "status is required");
         if (r.status() == ClaimStatus.denied) {
