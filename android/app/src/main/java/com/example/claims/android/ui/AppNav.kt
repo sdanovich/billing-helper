@@ -1,6 +1,9 @@
 package com.example.claims.android.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -12,6 +15,15 @@ import com.example.claims.android.data.AppGraph
 fun AppNav(graph: AppGraph) {
     val nav = rememberNavController()
     val start = if (graph.session.isLoggedIn()) "list" else "login"
+
+    // Refresh token rejected by the server (e.g. expired after 30 days idle): the session is
+    // already cleared, so route back to login instead of leaving screens showing raw 401s.
+    val expired by graph.session.expired.collectAsState()
+    LaunchedEffect(expired) {
+        if (expired && nav.currentDestination?.route != "login") {
+            nav.navigate("login") { popUpTo(0) { inclusive = true } }
+        }
+    }
 
     NavHost(navController = nav, startDestination = start) {
         composable("login") {
