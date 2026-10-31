@@ -13,6 +13,7 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.HttpException
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 
@@ -44,15 +45,32 @@ class AppGraph(context: Context) {
         .build()
         .create(AuthApi::class.java)
 
-    /** Per-user token refresh: trade the stored refresh token for a new JWT (and a rotated refresh). */
+    private val refreshLock = Any()
+
+    /**
+     * Per-user token refresh: trade the stored refresh token for a new JWT (and a rotated refresh).
+     *
+     * Serialized: refresh tokens are single-use (rotated on every call), so two concurrent 401s
+     * racing with the same token would see the loser rejected and wrongly end the session. Under
+     * the lock the second caller reads the already-rotated token instead.
+     *
+     * A definitive 401 from the refresh endpoint (expired/revoked — e.g. after 30 days idle) ends
+     * the session so the UI routes back to login. Transient failures (offline, server down, 5xx)
+     * keep the session; the caller just sees the error and can retry.
+     */
     private val tokenProvider = TokenProvider {
-        val rt = session.refreshToken ?: return@TokenProvider null
-        try {
-            val resp = runBlocking { authApi.refresh(RefreshRequest(rt)) }
-            session.save(resp)
-            resp.token
-        } catch (e: Exception) {
-            null
+        synchronized(refreshLock) {
+            val rt = session.refreshToken ?: return@TokenProvider null
+            try {
+                val resp = runBlocking { authApi.refresh(RefreshRequest(rt)) }
+                session.save(resp)
+                resp.token
+            } catch (e: HttpException) {
+                if (e.code() == 401) session.expire()
+                null
+            } catch (e: Exception) {
+                null
+            }
         }
     }
 

@@ -3,6 +3,9 @@ package com.example.claims.android.data
 import android.content.Context
 import com.danovich.platform.auth.TokenStore
 import com.danovich.platform.login.ui.AuthResponse
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Persists the long-lived refresh token (+ identity) so the clerk stays signed in across cold
@@ -12,6 +15,7 @@ import com.danovich.platform.login.ui.AuthResponse
 class SessionStore(context: Context) {
 
     private val prefs = context.getSharedPreferences("claims_session", Context.MODE_PRIVATE)
+    private val _expired = MutableStateFlow(false)
 
     val refreshToken: String? get() = prefs.getString(KEY_REFRESH, null)
     val email: String? get() = prefs.getString(KEY_EMAIL, null)
@@ -22,6 +26,7 @@ class SessionStore(context: Context) {
     /** Store a fresh session: JWT in memory, refresh token + identity persisted. */
     fun save(resp: AuthResponse) {
         TokenStore.set(resp.token)
+        _expired.value = false
         prefs.edit()
             .putString(KEY_REFRESH, resp.refreshToken)
             .putString(KEY_EMAIL, resp.email)
@@ -32,6 +37,19 @@ class SessionStore(context: Context) {
     fun logout() {
         TokenStore.clear()
         prefs.edit().clear().apply()
+        _expired.value = false
+    }
+
+    /**
+     * True once the server has rejected the refresh token (expired/revoked). The nav layer
+     * observes this and routes back to login. Reset by the next [save] or [logout].
+     */
+    val expired: StateFlow<Boolean> = _expired.asStateFlow()
+
+    /** Server rejected the refresh token: drop the dead session and signal the UI. */
+    fun expire() {
+        logout()
+        _expired.value = true
     }
 
     private companion object {
